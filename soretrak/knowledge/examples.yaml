@@ -1,0 +1,49 @@
+# Exemples vérifiés question → SQL (exécutés contre la vraie base).
+# L'agent adapte la forme à la question, la logique reste la même.
+# Les ids viennent toujours de resolve_place.
+
+- question: "Arrêts de la ligne 21"
+  sql: SELECT stop_id, stop_name, stop_sequence FROM v_route_stops WHERE route_id = '21' AND direction_id = 0 ORDER BY stop_sequence
+  note: Sens non précisé → direction_id = 0, et le dire si les deux sens existent.
+
+- question: "Lignes qui passent par Manufacture des tabacs"
+  sql: SELECT DISTINCT route_id, route_short_name FROM v_route_stops WHERE stop_id = '101'
+
+- question: "Prochain bus à Manufacture des tabacs"
+  sql: SELECT route_id, trip_headsign, departure_time FROM v_departures WHERE stop_id = '101' AND departure_time >= '08:00:00' ORDER BY departure_time LIMIT 5
+  note: « Prochain » = à partir de l'heure actuelle du contexte.
+
+- question: "Horaires de la ligne 21"
+  sql: SELECT DISTINCT trip_id, departure_time FROM v_departures WHERE route_id = '21' AND direction_id = 0 AND stop_sequence = 1 ORDER BY departure_time
+  note: Horaires d'une ligne = départs au premier arrêt (stop_sequence = 1). 0 ligne → vérifier l'autre sens, puis aucune_donnee.
+
+- question: "Bus direct entre Immeubles El Mansourah et X - SOUSSE"
+  sql: SELECT DISTINCT route_id FROM v_trajets WHERE depart_id = '429' AND arrivee_id = '601'
+  note: v_trajets garantit A avant B sur le même trajet. « Entre A et B » sans sens précisé → si vide, essayer A et B inversés. « De A à B » → ne pas inverser.
+
+- question: "Combien de lignes ont des horaires ?"
+  sql: SELECT COUNT(DISTINCT route_id) FROM v_departures
+
+- question: "Quelle ligne a le plus de départs, et à quelle heure part son premier bus ?"
+  sql: SELECT route_id, COUNT(DISTINCT trip_id) AS nb_departs, MIN(CASE WHEN stop_sequence = 1 THEN departure_time END) AS premier_depart FROM v_departures GROUP BY route_id ORDER BY nb_departs DESC LIMIT 1
+  note: Départ = trajet (COUNT(DISTINCT trip_id)), jamais COUNT(*) qui compte les passages aux arrêts. Premier bus = premier départ au premier arrêt.
+
+- question: "Combien d'arrêts sont desservis ?"
+  sql: SELECT COUNT(DISTINCT stop_id) FROM v_departures
+  note: Différent du nombre d'arrêts existants (table stops, 192).
+
+- question: "Combien d'arrêts entre Immeubles El Mansourah et BAB JEDID ?"
+  sql: SELECT route_id, MIN(nb_arrets) AS nb_arrets_parcourus FROM v_trajets WHERE depart_id = '429' AND arrivee_id = '432' GROUP BY route_id ORDER BY nb_arrets_parcourus
+  note: Arrêts parcourus = nb_arrets (arrivée comprise, départ exclu) ; arrêts intermédiaires = nb_arrets − 1. Une ligne par ligne directe.
+
+- question: "Horaires de Immeubles El Mansourah à BAB JEDID"
+  sql: SELECT route_id, heure_depart, heure_arrivee FROM v_trajets WHERE depart_id = '429' AND arrivee_id = '432' ORDER BY heure_depart
+  note: Un trajet par ligne de résultat, avec le départ à A et l'arrivée à B. Ne jamais filtrer stop_sequence = 1 pour des horaires à un arrêt (c'est le premier arrêt de la ligne).
+
+- question: "Prochains bus de BAB KHOUKHA vers BAB JEDID"
+  sql: SELECT route_id, heure_depart, heure_arrivee, duree_min FROM v_trajets WHERE depart_id = '433' AND arrivee_id = '432' AND heure_depart >= '10:00:00' ORDER BY heure_depart LIMIT 5
+  note: « Prochain » = à partir de l'heure actuelle du contexte.
+
+- question: "Combien de temps entre Immeubles El Mansourah et BAB JEDID ?"
+  sql: SELECT route_id, MIN(duree_min) AS duree_min, MAX(duree_min) AS duree_max, COUNT(*) AS nb_trajets FROM v_trajets WHERE depart_id = '429' AND arrivee_id = '432' GROUP BY route_id ORDER BY duree_min
+  note: duree_min est déjà calculée en minutes par la vue (21 = 16 min, 22 = 32 min, 70 = 20 min). Ne jamais soustraire des heures soi-même.

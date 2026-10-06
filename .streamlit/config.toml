@@ -1,0 +1,5 @@
+# Thème de l'interface : toujours clair, quel que soit le réglage du système du visiteur.
+[theme]
+base = "light"
+backgroundColor = "#ffffff"
+primaryColor = "#43a047"   # vert du design SORETRAK Assist

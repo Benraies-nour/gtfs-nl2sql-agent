@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+env/
+.venv/
+
+# Secrets
+.env
+
+# Data (download it, see README)
+data/gtfs/
+data/*.db
